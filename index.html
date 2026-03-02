@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL | Danzy Targeted Extraction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #010409; color: #f0f6fc; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(20px); border: 1px solid #30363d; }
+        .btn-prime { background: linear-gradient(135deg, #38bdf8 0%, #1d4ed8 100%); transition: 0.3s; }
+        .btn-prime:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(29, 78, 216, 0.4); }
+        .thumb-box { aspect-ratio: 16/9; background: #000; border-radius: 1rem; overflow: hidden; border: 1px solid #30363d; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-5">
+
+    <div class="w-full max-w-lg">
+        <div class="text-center mb-10">
+            <h1 class="text-5xl font-black tracking-tighter italic">SENTINEL<span class="text-sky-500">.</span></h1>
+            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2 italic">Danzz API Integrated System</p>
+        </div>
+
+        <div class="glass rounded-[2.5rem] p-8 md:p-10 shadow-2xl border-sky-500/10">
+            <div class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-sky-400 uppercase tracking-widest ml-1">Paste TikTok Link</label>
+                    <input id="urlInput" type="text" placeholder="https://www.tiktok.com/..." 
+                           class="w-full bg-[#0d1117] border border-[#30363d] py-5 px-6 rounded-2xl focus:outline-none focus:border-sky-500 transition-all text-white">
+                </div>
+                <button onclick="fetchData()" id="fetchBtn" class="btn-prime w-full py-5 rounded-2xl font-black text-white tracking-widest">
+                    FETCH MEDIA
+                </button>
+            </div>
+
+            <div id="resultArea" class="hidden mt-10 pt-8 border-t border-slate-800">
+                <div id="loader" class="hidden text-center py-4">
+                    <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p class="text-[10px] font-bold text-sky-500 animate-pulse">EXTRACTING...</p>
+                </div>
+
+                <div id="successBox" class="hidden space-y-6">
+                    <div class="thumb-box relative">
+                        <img id="previewImg" src="" class="w-full h-full object-cover opacity-70">
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-4xl text-white/40"></i>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <h3 id="videoTitle" class="font-bold text-sm text-white truncate">Video Title</h3>
+                        <p id="videoAuthor" class="text-[10px] text-sky-500 font-black uppercase">@Author</p>
+                    </div>
+
+                    <button onclick="downloadAction()" id="dlBtn" class="w-full bg-white text-black py-4 rounded-xl font-black hover:bg-slate-200 transition-all uppercase text-sm">
+                        Download Video
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let CURRENT_URL = "";
+
+        async function fetchData() {
+            const url = document.getElementById('urlInput').value.trim();
+            const btn = document.getElementById('fetchBtn');
+            const resultArea = document.getElementById('resultArea');
+            const loader = document.getElementById('loader');
+            const successBox = document.getElementById('successBox');
+
+            if (!url) return alert("Link kosong, Commander!");
+
+            // UI Reset
+            btn.disabled = true;
+            btn.innerHTML = "PROCESSING...";
+            resultArea.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            successBox.classList.add('hidden');
+
+            try {
+                // Sesuai endpoint Danzy
+                const response = await fetch(`https://api.danzy.web.id/api/download/tiktok?url=${encodeURIComponent(url)}`);
+                const res = await response.json();
+
+                console.log("Respon Danzy:", res);
+
+                // Kunci Target Berdasarkan Struktur JSON yang Kamu Kasih
+                if (res.status && res.data) {
+                    const d = res.data;
+                    
+                    // Link download ada di array links index ke-0
+                    CURRENT_URL = d.links && d.links[0] ? d.links[0] : null;
+                    
+                    if (CURRENT_URL) {
+                        document.getElementById('previewImg').src = d.thumbnail;
+                        document.getElementById('videoTitle').innerText = d.title;
+                        document.getElementById('videoAuthor').innerText = "@" + d.author;
+                        
+                        loader.classList.add('hidden');
+                        successBox.classList.remove('hidden');
+                    } else {
+                        alert("Gagal menemukan link download dalam array 'links'.");
+                    }
+                } else {
+                    alert("API Error: Status False / Data Null");
+                }
+            } catch (err) {
+                alert("Koneksi Error!");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "FETCH MEDIA";
+            }
+        }
+
+        async function downloadAction() {
+            const btn = document.getElementById('dlBtn');
+            btn.innerHTML = "DOWNLOADING...";
+            btn.disabled = true;
+
+            try {
+                // Trik Blob Download agar tidak cuma buka tab baru
+                const response = await fetch(CURRENT_URL);
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `SENTINEL_${Date.now()}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            } catch (e) {
+                // Jika CORS memblokir, buka di tab baru sebagai cadangan
+                window.open(CURRENT_URL, '_blank');
+            } finally {
+                btn.innerHTML = "DOWNLOAD VIDEO";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
